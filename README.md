@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# API Testing Interface
+
+A modern API testing tool similar to Postman, built with Next.js, TypeScript, and other modern web technologies.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+ and npm
+- Modern web browser with IndexedDB support
+
+### Installation & Running Locally
+
+1. **Clone and install dependencies:**
+   ```bash
+   cd api-testing-app
+   npm install
+   ```
+
+2. **Start the development server:**
+   ```bash
+   npm run dev
+   ```
+
+3. **Open in browser:**
+   ```
+   http://localhost:3000
+   ```
+
+### Production Build
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Features Implemented
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### ✅ Core Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Workspace Management**
+  - Create, rename, and switch between workspaces
+  - Workspace validation with real-time error feedback
+  - Persistent storage using IndexedDB
 
-## Learn More
+- **Request Management**
+  - Support for all HTTP methods (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
+  - Tab system with 15 tab limit
+  - Auto-save request data
 
-To learn more about Next.js, take a look at the following resources:
+- **Import & Export**
+  - Import from cURL commands
+  - Copy as cURL with full request details
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Request Configuration**
+  - URL input with method selection
+  - Query parameters editor with bulk edit mode
+  - Headers editor with bulk edit mode
+  - Request body support (Raw JSON/Text)
+  - JSON beautification
+  - Authentication panel (Not implemented yet)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Bulk Edit Features**
+  - Toggle between key-value UI and text editor
+  - Format: `key:value // description` syntax
+  - Disabled rows with `//` prefix
+  - Real-time sync between modes
 
-## Deploy on Vercel
+- **Response Handling**
+  - Status code and response time display
+  - Response headers viewer
+  - Raw response text view
+  - Error handling for network failures
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **User Experience**
+  - Keyboard navigation support
+  - Loading states and error feedback
+  - Professional Postman-like interface
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Tech Stack
+
+- **Frontend:** Next.js 14, TypeScript, Tailwind CSS
+- **UI Components:** shadcn/ui, Radix UI
+- **State Management:** Redux Toolkit
+- **Storage:** IndexedDB (Dexie.js)
+- **HTTP Client:** Axios
+- **Code Editor:** Monaco Editor (for JSON/text editing)
+
+## Architecture
+
+- **Protocol-based architecture** for future expansion (REST, GraphQL, WebSocket)
+- **Modular component structure** with clear separation of concerns
+- **Database separation** per protocol for optimal performance
+- **Workspace-centric design** for organization
+
+## Development Notes
+
+### Assumptions Made
+
+- Modern browser environment with ES6+ support
+- IndexedDB available for local storage
+- Default SSE endpoint: `https://binary-seven.vercel.app/api/proxy/sse`
+
+### Key Design Decisions
+
+- **Epoch timestamps** used throughout for Redux serialization
+- **Protocol-specific databases** for scalability
+- **Tab limit of 15** to prevent performance issues
+- **Real-time state sync** between components via Redux
+- **Accessibility-first approach** with keyboard navigation
+
+## API Endpoints
+
+The application uses Next.js API routes for request proxying:
+
+- `/api/proxy/sse` - Server-sent events proxy
