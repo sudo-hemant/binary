@@ -755,12 +755,12 @@ const restSlice = createSlice({
     },
 
     // Environment CRUD actions
-    addEnvironment: (state, action: PayloadAction<{ name: string }>) => {
+    addEnvironment: (state, action: PayloadAction<{ name: string; variables?: EnvironmentVariable[] }>) => {
       const now = Date.now();
       const newEnv: Environment = {
         id: `env-${now}`,
         name: action.payload.name,
-        variables: [],
+        variables: action.payload.variables || [],
         createdAt: now,
         updatedAt: now
       };
