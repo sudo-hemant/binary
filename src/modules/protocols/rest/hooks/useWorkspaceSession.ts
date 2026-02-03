@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks/redux';
 import { restoreWorkspaceSession } from '../store/restSlice';
-import { loadWorkspaceSession, loadWorkspaceCollection } from './useAutoSave';
+import { loadWorkspaceSession, loadWorkspaceCollection, loadWorkspaceEnvironments } from './useAutoSave';
 import { restDb } from '@/lib/db';
 
 export function useWorkspaceSession() {
@@ -15,14 +15,15 @@ export function useWorkspaceSession() {
     const loadSession = async () => {
       try {
         console.log('Loading workspace data for:', currentWorkspace);
-        
-        // Load both session and collection in parallel
-        const [session, collectionData] = await Promise.all([
+
+        // Load session, collection, and environments in parallel
+        const [session, collectionData, environmentsData] = await Promise.all([
           loadWorkspaceSession(currentWorkspace),
-          loadWorkspaceCollection(currentWorkspace)
+          loadWorkspaceCollection(currentWorkspace),
+          loadWorkspaceEnvironments(currentWorkspace)
         ]);
-        
-        console.log('Loaded data:', { session, collectionData });
+
+        console.log('Loaded data:', { session, collectionData, environmentsData });
         
         // Step 2: Load all tab request data from IndexedDB
         const visibleTabIds = session?.visibleTabIds || [];
@@ -57,6 +58,8 @@ export function useWorkspaceSession() {
           activeTabId: session?.activeTabId || null,
           visibleTabIds: visibleTabIds,
           collection: collectionData?.collection,
+          environments: environmentsData?.environments,
+          activeEnvironmentId: environmentsData?.activeEnvironmentId,
           tabsData: tabsData,
           workspaceId: currentWorkspace
         }));
