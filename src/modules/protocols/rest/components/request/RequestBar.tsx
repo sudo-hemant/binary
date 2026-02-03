@@ -5,6 +5,7 @@ import { MethodSelector } from '../common/MethodSelector';
 import { UrlInput } from '../common/UrlInput';
 import { SendButton } from '../common/SendButton';
 import { CodeGenerationDialog } from '../common/CodeGenerationDialog';
+import { EnvironmentSelector } from '../common/EnvironmentSelector';
 import { Button } from '@/components/ui/button';
 import { Code } from 'lucide-react';
 import { generateCurlCommand } from '../../utils/codeGeneration';
@@ -52,8 +53,9 @@ export function RequestBar({
       <div className="flex gap-2">
         <MethodSelector value={method} onChange={onMethodChange} />
         <UrlInput value={url} onChange={onUrlChange} className="flex-1" />
+        <EnvironmentSelector />
 
-        <SendButton 
+        <SendButton
           onClick={onSend}
           loading={loading}
           disabled={!url}
