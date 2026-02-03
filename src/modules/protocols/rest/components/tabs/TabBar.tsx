@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppSelector, useAppDispatch } from '@/store/hooks/redux';
-import { selectVisibleTabs, selectActiveTab, selectCanAddMoreTabs, createTab, setActiveTab, closeTab } from '../../store/restSlice';
+import { selectVisibleTabs, selectActiveTab, selectCanAddMoreTabs, createTab, setActiveTab, closeTab, updateTabName } from '../../store/restSlice';
 import { TabItem } from './TabItem';
 import { NewTabButton } from './NewTabButton';
 
@@ -18,6 +18,10 @@ export function TabBar() {
 
   const handleTabClose = (tabId: string) => {
     dispatch(closeTab({ tabId }));
+  };
+
+  const handleTabRename = (tabId: string, newName: string) => {
+    dispatch(updateTabName({ tabId, name: newName }));
   };
 
   const handleNewTab = () => {
@@ -37,12 +41,13 @@ export function TabBar() {
           isActive={activeTab?.id === tab.id}
           onClick={handleTabClick}
           onClose={handleTabClose}
+          onRename={handleTabRename}
         />
       ))}
 
       {/* New Tab Button - flows with tabs */}
       <div className="px-2">
-        <NewTabButton 
+        <NewTabButton
           onClick={handleNewTab}
           disabled={!canAddMoreTabs}
         />
