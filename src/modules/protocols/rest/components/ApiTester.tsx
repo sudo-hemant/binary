@@ -9,21 +9,24 @@ import { TabBar } from './tabs/TabBar';
 import { useAppSelector, useAppDispatch } from '@/store/hooks/redux';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { useWorkspaceSession } from '../hooks/useWorkspaceSession';
-import { 
+import {
   updateTabUrl,
   updateTabMethod,
   selectActiveTab,
+  selectActiveEnvironment,
   addTabResponse,
   setTabLoading,
   setTabError,
 } from '../store/restSlice';
 import { executeHttpRequest } from '../services/requestService';
 import { shouldPrependProtocol } from '../utils/urlHelper';
+import { substituteVariables, substituteVariablesInObject } from '../utils/variableSubstitution';
 
 export function ApiTester() {
   const dispatch = useAppDispatch();
   const activeTab = useAppSelector(selectActiveTab);
-  
+  const activeEnvironment = useAppSelector(selectActiveEnvironment);
+
   // Enable auto-save to indexDB for redux changes
   useAutoSave();
   // Load workspace session when workspace changes
@@ -33,33 +36,55 @@ export function ApiTester() {
     // Don't send if already loading
     if (!activeTab || activeTab.ui.loading) return;
 
+    // Get environment variables for substitution
+    const envVariables = activeEnvironment?.variables || [];
+
+    // Apply variable substitution to URL
+    let processedUrl = activeTab.request.url;
+    if (envVariables.length > 0) {
+      processedUrl = substituteVariables(processedUrl, envVariables);
+    }
+
     // Check if we need to update the URL with protocol
-    const urlCheck = shouldPrependProtocol(activeTab.request.url);
+    const urlCheck = shouldPrependProtocol(processedUrl);
     const finalUrl = urlCheck.normalizedUrl;
-    
+
     if (urlCheck.needed) {
       // Update the URL in the state so user can see what was used
       dispatch(updateTabUrl({ tabId: activeTab.id, url: finalUrl }));
     }
 
+    // Apply variable substitution to params, headers, and body
+    const processedParams = envVariables.length > 0
+      ? substituteVariablesInObject(activeTab.request.params, envVariables)
+      : activeTab.request.params;
+
+    const processedHeaders = envVariables.length > 0
+      ? substituteVariablesInObject(activeTab.request.headers, envVariables)
+      : activeTab.request.headers;
+
+    const processedBody = envVariables.length > 0
+      ? substituteVariablesInObject(activeTab.request.body, envVariables)
+      : activeTab.request.body;
+
     // Clear any previous errors and start loading
     dispatch(setTabError({ tabId: activeTab.id, error: null }));
     dispatch(setTabLoading({ tabId: activeTab.id, loading: true }));
-    
+
     const result = await executeHttpRequest(
-      finalUrl,  // Use the normalized URL directly
+      finalUrl,  // Use the processed and normalized URL
       activeTab.request.method,
-      activeTab.request.params,
-      activeTab.request.headers,
-      activeTab.request.body
+      processedParams,
+      processedHeaders,
+      processedBody
     );
-    
+
     if (result.success) {
       dispatch(addTabResponse({ tabId: activeTab.id, response: result.response }));
     } else {
       dispatch(setTabError({ tabId: activeTab.id, error: result.error }));
     }
-  }, [activeTab, dispatch]);
+  }, [activeTab, activeEnvironment, dispatch]);
 
   // Keyboard shortcut for sending request
   useEffect(() => {
