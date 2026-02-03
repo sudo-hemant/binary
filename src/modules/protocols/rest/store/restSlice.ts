@@ -92,6 +92,22 @@ export interface CollectionItem {
   requestId?: string;             // Only requests have this (references tab ID)
 }
 
+// Environment types
+export interface EnvironmentVariable {
+  id: string;
+  key: string;
+  value: string;
+  enabled: boolean;
+}
+
+export interface Environment {
+  id: string;
+  name: string;
+  variables: EnvironmentVariable[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 interface RestProtocolState {
   // Tab management
   tabs: {
@@ -99,20 +115,19 @@ interface RestProtocolState {
     // allIds: string[];
     activeTabId: string | null;
   };
-  
+
   // UI State for tabs
   ui: {
     visibleTabIds: string[];    // Tabs shown in tab bar
     maxVisibleTabs: number;     // Maximum tabs that can be open
   };
-  
+
   // Collection
   collection: CollectionItem[];
-  
-  // Shared across all tabs (to be implemented later)
-  // history: ApiRequest[];
-  // environments: Environment[];
-  // activeEnvironmentId: string | null;
+
+  // Environments
+  environments: Environment[];
+  activeEnvironmentId: string | null;
 }
 
 // Helper function to create default body
@@ -300,7 +315,9 @@ const initialState: RestProtocolState = {
     maxVisibleTabs: 15
   },
   // FIXME:
-  collection: dummyCollection
+  collection: dummyCollection,
+  environments: [],
+  activeEnvironmentId: null
 };
 
 const restSlice = createSlice({
@@ -737,27 +754,134 @@ const restSlice = createSlice({
       state.collection = action.payload;
     },
 
+    // Environment CRUD actions
+    addEnvironment: (state, action: PayloadAction<{ name: string }>) => {
+      const now = Date.now();
+      const newEnv: Environment = {
+        id: `env-${now}`,
+        name: action.payload.name,
+        variables: [],
+        createdAt: now,
+        updatedAt: now
+      };
+      state.environments.push(newEnv);
+      // Set as active if it's the first environment
+      if (state.environments.length === 1) {
+        state.activeEnvironmentId = newEnv.id;
+      }
+    },
+
+    updateEnvironment: (state, action: PayloadAction<{
+      id: string;
+      name?: string;
+      variables?: EnvironmentVariable[];
+    }>) => {
+      const { id, name, variables } = action.payload;
+      const env = state.environments.find(e => e.id === id);
+      if (env) {
+        if (name !== undefined) env.name = name;
+        if (variables !== undefined) env.variables = variables;
+        env.updatedAt = Date.now();
+      }
+    },
+
+    deleteEnvironment: (state, action: PayloadAction<{ id: string }>) => {
+      const index = state.environments.findIndex(e => e.id === action.payload.id);
+      if (index !== -1) {
+        state.environments.splice(index, 1);
+        // If deleting active environment, select another or set to null
+        if (state.activeEnvironmentId === action.payload.id) {
+          state.activeEnvironmentId = state.environments.length > 0
+            ? state.environments[0].id
+            : null;
+        }
+      }
+    },
+
+    setActiveEnvironment: (state, action: PayloadAction<{ id: string | null }>) => {
+      state.activeEnvironmentId = action.payload.id;
+    },
+
+    addEnvironmentVariable: (state, action: PayloadAction<{
+      envId: string;
+      variable: EnvironmentVariable;
+    }>) => {
+      const env = state.environments.find(e => e.id === action.payload.envId);
+      if (env) {
+        env.variables.push(action.payload.variable);
+        env.updatedAt = Date.now();
+      }
+    },
+
+    updateEnvironmentVariable: (state, action: PayloadAction<{
+      envId: string;
+      variableId: string;
+      updates: Partial<Omit<EnvironmentVariable, 'id'>>;
+    }>) => {
+      const { envId, variableId, updates } = action.payload;
+      const env = state.environments.find(e => e.id === envId);
+      if (env) {
+        const variable = env.variables.find(v => v.id === variableId);
+        if (variable) {
+          Object.assign(variable, updates);
+          env.updatedAt = Date.now();
+        }
+      }
+    },
+
+    deleteEnvironmentVariable: (state, action: PayloadAction<{
+      envId: string;
+      variableId: string;
+    }>) => {
+      const { envId, variableId } = action.payload;
+      const env = state.environments.find(e => e.id === envId);
+      if (env) {
+        const index = env.variables.findIndex(v => v.id === variableId);
+        if (index !== -1) {
+          env.variables.splice(index, 1);
+          env.updatedAt = Date.now();
+        }
+      }
+    },
+
+    setEnvironments: (state, action: PayloadAction<Environment[]>) => {
+      state.environments = action.payload;
+    },
+
     // Workspace session restoration (sync - restores all tab data)
-    restoreWorkspaceSession: (state, action: PayloadAction<{ 
-      activeTabId: string | null; 
+    restoreWorkspaceSession: (state, action: PayloadAction<{
+      activeTabId: string | null;
       visibleTabIds: string[];
       collection?: CollectionItem[];
+      environments?: Environment[];
+      activeEnvironmentId?: string | null;
       tabsData?: Record<string, ApiRequest>; // Pre-loaded tab data
       workspaceId: string; // Current workspace ID
     }>) => {
-      const { activeTabId, visibleTabIds, collection, tabsData, workspaceId } = action.payload;
-      
+      const { activeTabId, visibleTabIds, collection, environments, activeEnvironmentId, tabsData, workspaceId } = action.payload;
+
       // Set active tab
       state.tabs.activeTabId = activeTabId;
-      
+
       // Clear existing visible tabs and add new ones
       state.ui.visibleTabIds.length = 0; // Clear array
       state.ui.visibleTabIds.push(...visibleTabIds); // Add new items
-      
+
       // Restore collection if provided
       if (collection) {
         state.collection.length = 0; // Clear array
         state.collection.push(...collection); // Add new items
+      }
+
+      // Restore environments if provided
+      if (environments) {
+        state.environments.length = 0; // Clear array
+        state.environments.push(...environments); // Add new items
+      }
+
+      // Restore active environment ID if provided
+      if (activeEnvironmentId !== undefined) {
+        state.activeEnvironmentId = activeEnvironmentId;
       }
       
       // Create tabs with loaded data or empty shells
@@ -823,6 +947,18 @@ export const selectCanAddMoreTabs = (state: { rest: RestProtocolState }) => {
 
 export const selectCollection = (state: { rest: RestProtocolState }) => state.rest.collection;
 
+export const selectEnvironments = (state: { rest: RestProtocolState }) => state.rest.environments;
+
+export const selectActiveEnvironmentId = (state: { rest: RestProtocolState }) => state.rest.activeEnvironmentId;
+
+export const selectActiveEnvironment = (state: { rest: RestProtocolState }) => {
+  const activeId = state.rest.activeEnvironmentId;
+  return activeId ? state.rest.environments.find(e => e.id === activeId) : null;
+};
+
+export const selectEnvironmentById = (state: { rest: RestProtocolState }, envId: string) =>
+  state.rest.environments.find(e => e.id === envId);
+
 export const {
   // Tab management
   createTab,
@@ -858,6 +994,16 @@ export const {
   renameCollectionItem,
   deleteCollectionItem,
   setCollection,
+
+  // Environment actions
+  addEnvironment,
+  updateEnvironment,
+  deleteEnvironment,
+  setActiveEnvironment,
+  addEnvironmentVariable,
+  updateEnvironmentVariable,
+  deleteEnvironmentVariable,
+  setEnvironments,
 } = restSlice.actions;
 
 export default restSlice.reducer;
