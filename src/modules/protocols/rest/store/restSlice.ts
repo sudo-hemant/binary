@@ -166,6 +166,62 @@ const createDefaultTab = (id: string, workspaceId: string, name: string = 'Untit
   };
 };
 
+// Helper function to find an item in the collection tree by ID
+const findCollectionItemById = (
+  items: CollectionItem[],
+  id: string
+): { item: CollectionItem; parent: CollectionItem[] } | null => {
+  for (const item of items) {
+    if (item.id === id) {
+      return { item, parent: items };
+    }
+    if (item.type === 'folder' && item.children) {
+      const found = findCollectionItemById(item.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
+// Helper function to find parent folder by ID
+const findParentFolder = (
+  items: CollectionItem[],
+  parentId: string | null
+): CollectionItem[] | null => {
+  if (parentId === null) return items; // Root level
+
+  for (const item of items) {
+    if (item.id === parentId && item.type === 'folder') {
+      return item.children || [];
+    }
+    if (item.type === 'folder' && item.children) {
+      const found = findParentFolder(item.children, parentId);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
+// Helper to ensure folder has children array
+const ensureFolderChildren = (
+  items: CollectionItem[],
+  folderId: string
+): CollectionItem[] | null => {
+  for (const item of items) {
+    if (item.id === folderId && item.type === 'folder') {
+      if (!item.children) {
+        item.children = [];
+      }
+      return item.children;
+    }
+    if (item.type === 'folder' && item.children) {
+      const found = ensureFolderChildren(item.children, folderId);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
 // Dummy collection data for UI development
 // FIXME: REMOVE
 const dummyCollection: CollectionItem[] = [
@@ -521,15 +577,29 @@ const restSlice = createSlice({
     //   }
     // },
     
-    // updateTabName: (state, action: PayloadAction<{ tabId: string; name: string }>) => {
-    //   const tab = state.tabs.byId[action.payload.tabId];
-    //   if (tab) {
-    //     // TODO: CHECK
-    //     tab.name = action.payload.name;
-    //     tab.request.name = action.payload.name;
-    //     tab.isDirty = true;
-    //   }
-    // },
+    updateTabName: (state, action: PayloadAction<{ tabId: string; name: string }>) => {
+      const tab = state.tabs.byId[action.payload.tabId];
+      if (tab) {
+        tab.name = action.payload.name;
+        tab.request.name = action.payload.name;
+        tab.isDirty = true;
+
+        // Also update the collection item if it exists
+        const findAndUpdateRequest = (items: CollectionItem[]): boolean => {
+          for (const item of items) {
+            if (item.type === 'request' && item.requestId === action.payload.tabId) {
+              item.name = action.payload.name;
+              return true;
+            }
+            if (item.type === 'folder' && item.children) {
+              if (findAndUpdateRequest(item.children)) return true;
+            }
+          }
+          return false;
+        };
+        findAndUpdateRequest(state.collection);
+      }
+    },
     
     // Response actions
     addTabResponse: (state, action: PayloadAction<{ tabId: string; response: ApiResponse }>) => {
@@ -566,6 +636,105 @@ const restSlice = createSlice({
       if (tab) {
         tab.responses = [];
       }
+    },
+
+    // Collection CRUD actions
+    addCollectionFolder: (state, action: PayloadAction<{
+      name: string;
+      parentId: string | null; // null = root level
+    }>) => {
+      const { name, parentId } = action.payload;
+      const newFolder: CollectionItem = {
+        id: `folder-${Date.now()}`,
+        name,
+        type: 'folder',
+        children: []
+      };
+
+      if (parentId === null) {
+        // Add to root level
+        state.collection.push(newFolder);
+      } else {
+        // Add to parent folder
+        const parentChildren = ensureFolderChildren(state.collection, parentId);
+        if (parentChildren) {
+          parentChildren.push(newFolder);
+        }
+      }
+    },
+
+    addCollectionRequest: (state, action: PayloadAction<{
+      name: string;
+      parentId: string | null; // null = root level
+      requestId: string; // The tab/request ID
+    }>) => {
+      const { name, parentId, requestId } = action.payload;
+      const newRequest: CollectionItem = {
+        id: `req-${Date.now()}`,
+        name,
+        type: 'request',
+        requestId
+      };
+
+      if (parentId === null) {
+        // Add to root level
+        state.collection.push(newRequest);
+      } else {
+        // Add to parent folder
+        const parentChildren = ensureFolderChildren(state.collection, parentId);
+        if (parentChildren) {
+          parentChildren.push(newRequest);
+        }
+      }
+    },
+
+    renameCollectionItem: (state, action: PayloadAction<{
+      itemId: string;
+      newName: string;
+    }>) => {
+      const { itemId, newName } = action.payload;
+      const found = findCollectionItemById(state.collection, itemId);
+      if (found) {
+        found.item.name = newName;
+
+        // If it's a request, also update the tab name
+        if (found.item.type === 'request' && found.item.requestId) {
+          const tab = state.tabs.byId[found.item.requestId];
+          if (tab) {
+            tab.name = newName;
+            tab.request.name = newName;
+            tab.isDirty = true;
+          }
+        }
+      }
+    },
+
+    deleteCollectionItem: (state, action: PayloadAction<{ itemId: string }>) => {
+      const { itemId } = action.payload;
+
+      // Helper to recursively delete from collection
+      const deleteFromCollection = (items: CollectionItem[]): boolean => {
+        const index = items.findIndex(item => item.id === itemId);
+        if (index !== -1) {
+          items.splice(index, 1);
+          return true;
+        }
+
+        // Search in children
+        for (const item of items) {
+          if (item.type === 'folder' && item.children) {
+            if (deleteFromCollection(item.children)) return true;
+          }
+        }
+        return false;
+      };
+
+      deleteFromCollection(state.collection);
+    },
+
+    // Update collection directly (for reordering, etc.)
+    setCollection: (state, action: PayloadAction<CollectionItem[]>) => {
+      state.collection = action.payload;
     },
 
     // Workspace session restoration (sync - restores all tab data)
@@ -662,7 +831,7 @@ export const {
   closeTab,
   setActiveTab,
   restoreWorkspaceSession,
-  
+
   // Request actions
   updateTabUrl,
   updateTabMethod,
@@ -672,18 +841,23 @@ export const {
   updateTabBodyType,
   updateTabBodyContent,
   updateTabBodyRaw,
-  
+  updateTabName,
+
   // UI actions
   toggleTabBulkEditMode,
-  
+
   // Response actions
   addTabResponse,
   setTabLoading,
   setTabError,
   clearTabResponses,
-  
-  // updateTabAuth,
-  // updateTabName
+
+  // Collection actions
+  addCollectionFolder,
+  addCollectionRequest,
+  renameCollectionItem,
+  deleteCollectionItem,
+  setCollection,
 } = restSlice.actions;
 
 export default restSlice.reducer;
