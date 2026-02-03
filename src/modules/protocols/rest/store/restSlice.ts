@@ -308,18 +308,18 @@ const restSlice = createSlice({
   initialState,
   reducers: {
     // Tab management actions
-    createTab: (state, action: PayloadAction<{ name?: string; workspaceId: string }>) => {
+    createTab: (state, action: PayloadAction<{ name?: string; workspaceId: string; id?: string }>) => {
       // Check if we can add more tabs first
       if (state.ui.visibleTabIds.length >= state.ui.maxVisibleTabs) {
         return; // Don't create tab if limit reached
       }
-      
-      const newTabId = `tab-${Date.now()}`;
+
       const timestamp = Date.now();
+      const newTabId = action.payload.id || `tab-${timestamp}`;
       const shortId = timestamp.toString().slice(-4); // Last 4 digits
       const defaultName = `New Request ${shortId}`;
       const newTab = createDefaultTab(newTabId, action.payload.workspaceId, action.payload.name || defaultName);
-      
+
       // Add to state
       // Already set isDirty to true while creating request
       state.tabs.byId[newTabId] = newTab;
