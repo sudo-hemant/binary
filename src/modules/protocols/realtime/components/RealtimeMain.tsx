@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,11 @@ type RealtimeProtocol = 'sse' | 'websocket';
 export function RealtimeMain() {
   const [activeProtocol, setActiveProtocol] = useState<RealtimeProtocol>('sse');
   const [method, setMethod] = useState<SSEMethod>('GET');
-  const [url, setUrl] = useState('https://binary-seven.vercel.app/api/proxy/sse');
+  const [url, setUrl] = useState('');
+
+  useEffect(() => {
+    setUrl(`${window.location.origin}/api/proxy/sse`);
+  }, []);
   const [events, setEvents] = useState<SSEEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(false);

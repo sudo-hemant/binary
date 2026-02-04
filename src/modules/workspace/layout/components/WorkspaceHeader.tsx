@@ -15,7 +15,7 @@ export function WorkspaceHeader() {
     >
       {/* Left section - Logo and Workspace Selector */}
       <div className="flex items-center gap-6 flex-1">
-        <h1 className="text-xl font-semibold tracking-wide text-foreground flex-shrink-0">Binary AI</h1>
+        <h1 className="text-xl font-semibold tracking-wide text-foreground flex-shrink-0">ConsoleX</h1>
         <WorkspaceSelector />
       </div>
 

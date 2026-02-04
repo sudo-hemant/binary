@@ -100,7 +100,7 @@ npm start
 
 - Modern browser environment with ES6+ support
 - IndexedDB available for local storage
-- Default SSE endpoint: `https://binary-seven.vercel.app/api/proxy/sse`
+- Default SSE endpoint: `<domain>/api/proxy/sse`
 
 ### Key Design Decisions
 
