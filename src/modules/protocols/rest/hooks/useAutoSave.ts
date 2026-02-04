@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
-import { useAppSelector } from '@/store/hooks/redux';
+import { useEffect, useRef } from 'react';
+import { useAppSelector, useAppDispatch } from '@/store/hooks/redux';
 import { restDb, type WorkspaceSession, type WorkspaceCollection, type WorkspaceEnvironments } from '@/lib/db';
+import { clearTabDirtyFlags } from '../store/restSlice';
 
 // Helper function to load workspace session
 export async function loadWorkspaceSession(workspaceId: string): Promise<WorkspaceSession | null> {
@@ -36,6 +37,7 @@ export async function loadWorkspaceEnvironments(workspaceId: string): Promise<Wo
 }
 
 export function useAutoSave() {
+  const dispatch = useAppDispatch();
   const currentWorkspace = useAppSelector(state => state.workspace.currentWorkspace);
   const activeTabId = useAppSelector(state => state.rest.tabs.activeTabId);
   const visibleTabIds = useAppSelector(state => state.rest.ui.visibleTabIds);
@@ -43,6 +45,9 @@ export function useAutoSave() {
   const environments = useAppSelector(state => state.rest.environments);
   const activeEnvironmentId = useAppSelector(state => state.rest.activeEnvironmentId);
   const allTabs = useAppSelector(state => state.rest.tabs.byId);
+
+  // Track previous workspace to detect changes
+  const prevWorkspaceRef = useRef<string | null>(null);
 
   // FIXME: TODO: ON WORKSPACE CHANGE, WE WANT TO AVOID RUNNING ALL THE USEEFFECTS
 
@@ -132,6 +137,13 @@ export function useAutoSave() {
   useEffect(() => {
     if (!currentWorkspace) return;
 
+    // Skip auto-save during workspace change to avoid saving stale data
+    if (prevWorkspaceRef.current !== null && prevWorkspaceRef.current !== currentWorkspace) {
+      prevWorkspaceRef.current = currentWorkspace;
+      return;
+    }
+    prevWorkspaceRef.current = currentWorkspace;
+
     // Get all tabs that are marked as dirty
     const dirtyTabs = Object.values(allTabs).filter(tab => tab && tab.isDirty);
 
@@ -150,6 +162,11 @@ export function useAutoSave() {
         });
 
         await Promise.all(requestPromises);
+
+        // Clear dirty flags for saved tabs
+        const savedTabIds = dirtyTabs.map(tab => tab.id);
+        dispatch(clearTabDirtyFlags({ tabIds: savedTabIds }));
+
         console.log(`Saved ${dirtyTabs.length} modified requests to IndexedDB`);
       } catch (error) {
         console.error('Failed to save modified requests:', error);
@@ -157,5 +174,5 @@ export function useAutoSave() {
     }, 500); // 500ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [currentWorkspace, allTabs]);
+  }, [currentWorkspace, allTabs, dispatch]);
 }

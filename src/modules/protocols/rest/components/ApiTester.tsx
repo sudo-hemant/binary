@@ -10,13 +10,13 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks/redux';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { useWorkspaceSession } from '../hooks/useWorkspaceSession';
 import {
-  updateTabUrl,
   updateTabMethod,
   selectActiveTab,
   selectActiveEnvironment,
   addTabResponse,
   setTabLoading,
   setTabError,
+  updateTabUrl,
 } from '../store/restSlice';
 import { executeHttpRequest } from '../services/requestService';
 import { shouldPrependProtocol } from '../utils/urlHelper';
@@ -45,14 +45,9 @@ export function ApiTester() {
       processedUrl = substituteVariables(processedUrl, envVariables);
     }
 
-    // Check if we need to update the URL with protocol
+    // Check if we need to prepend protocol (only for the request, don't modify the input)
     const urlCheck = shouldPrependProtocol(processedUrl);
     const finalUrl = urlCheck.normalizedUrl;
-
-    if (urlCheck.needed) {
-      // Update the URL in the state so user can see what was used
-      dispatch(updateTabUrl({ tabId: activeTab.id, url: finalUrl }));
-    }
 
     // Apply variable substitution to params, headers, and body
     const processedParams = envVariables.length > 0

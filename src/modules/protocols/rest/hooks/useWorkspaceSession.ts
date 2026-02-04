@@ -1,12 +1,59 @@
 import { useEffect } from 'react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks/redux';
-import { restoreWorkspaceSession } from '../store/restSlice';
+import { restoreWorkspaceSession, setTabRequestData } from '../store/restSlice';
 import { loadWorkspaceSession, loadWorkspaceCollection, loadWorkspaceEnvironments } from './useAutoSave';
 import { restDb } from '@/lib/db';
+import type { ApiRequest } from '../store/restSlice';
 
 export function useWorkspaceSession() {
   const dispatch = useAppDispatch();
   const currentWorkspace = useAppSelector(state => state.workspace.currentWorkspace);
+  const allTabs = useAppSelector(state => state.rest.tabs.byId);
+
+  // Load request data for tabs that are marked as loading
+  useEffect(() => {
+    if (!currentWorkspace) return;
+
+    // Find tabs that need their request data loaded
+    const loadingTabs = Object.values(allTabs).filter(tab => tab && tab.isLoadingRequest);
+
+    if (loadingTabs.length === 0) return;
+
+    const loadTabData = async () => {
+      for (const tab of loadingTabs) {
+        try {
+          console.log('Loading request data for tab:', tab.id);
+          const requestData = await restDb.requests.get(tab.id);
+
+          if (requestData) {
+            // Found data in IndexedDB, update the tab
+            dispatch(setTabRequestData({
+              tabId: tab.id,
+              requestData: requestData as ApiRequest
+            }));
+            console.log('Loaded request data for tab:', tab.id);
+          } else {
+            // No data in IndexedDB, mark as loaded with default data
+            // The tab already has default data from createDefaultTab
+            dispatch(setTabRequestData({
+              tabId: tab.id,
+              requestData: tab.request // Use existing default data
+            }));
+            console.log('No saved data found for tab, using defaults:', tab.id);
+          }
+        } catch (error) {
+          console.error(`Failed to load request data for tab ${tab.id}:`, error);
+          // On error, still mark as loaded to prevent infinite loops
+          dispatch(setTabRequestData({
+            tabId: tab.id,
+            requestData: tab.request
+          }));
+        }
+      }
+    };
+
+    loadTabData();
+  }, [currentWorkspace, allTabs, dispatch]);
 
   // Load workspace session when workspace changes
   useEffect(() => {

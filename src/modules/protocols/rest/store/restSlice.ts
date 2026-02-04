@@ -237,74 +237,6 @@ const ensureFolderChildren = (
   return null;
 };
 
-// Dummy collection data for UI development
-// FIXME: REMOVE
-const dummyCollection: CollectionItem[] = [
-  {
-    id: 'folder-1',
-    name: 'User Management',
-    type: 'folder',
-    children: [
-      {
-        id: 'req-1',
-        name: 'Get All Users',
-        type: 'request',
-        requestId: 'tab-11'
-      },
-      {
-        id: 'req-2',
-        name: 'Create User',
-        type: 'request',
-        requestId: 'tab-2'
-      },
-      {
-        id: 'folder-1-1',
-        name: 'Authentication',
-        type: 'folder',
-        children: [
-          {
-            id: 'req-3',
-            name: 'Login',
-            type: 'request',
-            requestId: 'tab-3'
-          },
-          {
-            id: 'req-4',
-            name: 'Logout',
-            type: 'request',
-            requestId: 'tab-4'
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'folder-2',
-    name: 'Products API',
-    type: 'folder',
-    children: [
-      {
-        id: 'req-5',
-        name: 'List Products',
-        type: 'request',
-        requestId: 'tab-5'
-      },
-      {
-        id: 'req-6',
-        name: 'Get Product Details',
-        type: 'request',
-        requestId: 'tab-6'
-      }
-    ]
-  },
-  {
-    id: 'req-7',
-    name: 'Health Check',
-    type: 'request',
-    requestId: 'tab-7'
-  }
-];
-
 const initialState: RestProtocolState = {
   tabs: {
     byId: {},
@@ -314,8 +246,7 @@ const initialState: RestProtocolState = {
     visibleTabIds: [],
     maxVisibleTabs: 15
   },
-  // FIXME:
-  collection: dummyCollection,
+  collection: [], // Empty - will be loaded per workspace from IndexedDB
   environments: [],
   activeEnvironmentId: null
 };
@@ -403,12 +334,12 @@ const restSlice = createSlice({
     
     openCollectionRequest: (state, action: PayloadAction<{ requestId: string; name: string; workspaceId: string }>) => {
       const { requestId, name, workspaceId } = action.payload;
-      
+
       // Check if tab already exists with this request ID
       if (state.tabs.byId[requestId]) {
         // Tab exists, just activate it
         state.tabs.activeTabId = requestId;
-        
+
         // Make sure it's visible
         if (!state.ui.visibleTabIds.includes(requestId)) {
           if (state.ui.visibleTabIds.length < state.ui.maxVisibleTabs) {
@@ -422,15 +353,13 @@ const restSlice = createSlice({
         if (state.ui.visibleTabIds.length >= state.ui.maxVisibleTabs) {
           return; // Don't create tab if limit reached
         }
-        
-        // TODO: This will become an async thunk in the future
-        // 1. Load request from IndexedDB by requestId
-        // 2. Create tab with loaded data
-        // 3. If not found in DB, then create empty tab
-        
-        // For now: create empty tab (temporary)
-        const newTab = createDefaultTab(requestId, workspaceId, name);
-        
+
+        // Create a tab shell marked as loading - data will be loaded from IndexedDB
+        // The component will dispatch setTabRequestData after loading
+        const newTab = createDefaultTab(requestId, workspaceId, name, false); // hasRequestData = false
+        newTab.isDirty = false; // Not dirty - will load from DB or start fresh
+        newTab.isLoadingRequest = true; // Mark as loading
+
         state.tabs.byId[requestId] = newTab;
         state.ui.visibleTabIds.push(requestId);
         state.tabs.activeTabId = requestId;
@@ -848,6 +777,33 @@ const restSlice = createSlice({
       state.environments = action.payload;
     },
 
+    // Clear dirty flags for specified tabs (called after auto-save)
+    clearTabDirtyFlags: (state, action: PayloadAction<{ tabIds: string[] }>) => {
+      const { tabIds } = action.payload;
+      tabIds.forEach(tabId => {
+        const tab = state.tabs.byId[tabId];
+        if (tab) {
+          tab.isDirty = false;
+        }
+      });
+    },
+
+    // Set request data for a tab (used when loading from IndexedDB)
+    setTabRequestData: (state, action: PayloadAction<{
+      tabId: string;
+      requestData: ApiRequest;
+    }>) => {
+      const { tabId, requestData } = action.payload;
+      const tab = state.tabs.byId[tabId];
+      if (tab) {
+        tab.request = requestData;
+        tab.name = requestData.name;
+        tab.isLoadingRequest = false;
+        tab.hasRequestData = true;
+        tab.isDirty = false; // Loaded from DB, not dirty
+      }
+    },
+
     // Workspace session restoration (sync - restores all tab data)
     restoreWorkspaceSession: (state, action: PayloadAction<{
       activeTabId: string | null;
@@ -860,6 +816,9 @@ const restSlice = createSlice({
     }>) => {
       const { activeTabId, visibleTabIds, collection, environments, activeEnvironmentId, tabsData, workspaceId } = action.payload;
 
+      // Clear all existing tabs for workspace isolation
+      state.tabs.byId = {};
+
       // Set active tab
       state.tabs.activeTabId = activeTabId;
 
@@ -867,22 +826,20 @@ const restSlice = createSlice({
       state.ui.visibleTabIds.length = 0; // Clear array
       state.ui.visibleTabIds.push(...visibleTabIds); // Add new items
 
-      // Restore collection if provided
-      if (collection) {
-        state.collection.length = 0; // Clear array
-        state.collection.push(...collection); // Add new items
+      // Always reset collection (empty array if no saved data)
+      state.collection.length = 0;
+      if (collection && collection.length > 0) {
+        state.collection.push(...collection);
       }
 
-      // Restore environments if provided
-      if (environments) {
-        state.environments.length = 0; // Clear array
-        state.environments.push(...environments); // Add new items
+      // Always reset environments (empty array if no saved data)
+      state.environments.length = 0;
+      if (environments && environments.length > 0) {
+        state.environments.push(...environments);
       }
 
-      // Restore active environment ID if provided
-      if (activeEnvironmentId !== undefined) {
-        state.activeEnvironmentId = activeEnvironmentId;
-      }
+      // Always reset active environment ID
+      state.activeEnvironmentId = activeEnvironmentId ?? null;
       
       // Create tabs with loaded data or empty shells
       visibleTabIds.forEach(tabId => {
@@ -994,6 +951,10 @@ export const {
   renameCollectionItem,
   deleteCollectionItem,
   setCollection,
+
+  // Tab data management
+  clearTabDirtyFlags,
+  setTabRequestData,
 
   // Environment actions
   addEnvironment,

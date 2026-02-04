@@ -5,7 +5,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select';
 import { Globe } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks/redux';
@@ -29,15 +28,20 @@ export function EnvironmentSelector({ className }: EnvironmentSelectorProps) {
     dispatch(setActiveEnvironment({ id: value === 'none' ? null : value }));
   };
 
+  // Get the display name for the selected environment
+  const selectedEnvName = activeEnvironmentId
+    ? environments.find(e => e.id === activeEnvironmentId)?.name || 'No Environment'
+    : 'No Environment';
+
   return (
     <Select
       value={activeEnvironmentId || 'none'}
       onValueChange={handleChange}
     >
       <SelectTrigger className={cn("w-[160px] h-10", className)}>
-        <div className="flex items-center gap-2">
-          <Globe className="h-4 w-4 text-muted-foreground" />
-          <SelectValue placeholder="No Environment" />
+        <div className="flex items-center gap-2 min-w-0">
+          <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <span className="truncate">{selectedEnvName}</span>
         </div>
       </SelectTrigger>
       <SelectContent>
@@ -46,8 +50,8 @@ export function EnvironmentSelector({ className }: EnvironmentSelectorProps) {
         </SelectItem>
         {environments.map((env) => (
           <SelectItem key={env.id} value={env.id}>
-            <div className="flex flex-col">
-              <span>{env.name}</span>
+            <div className="flex flex-col max-w-[200px]">
+              <span className="truncate">{env.name}</span>
               <span className="text-xs text-muted-foreground">
                 {env.variables.length} variable{env.variables.length !== 1 ? 's' : ''}
               </span>
