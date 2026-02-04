@@ -5,10 +5,11 @@ import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 import { WorkspaceSelector } from '../../components/WorkspaceSelector';
+import { EnvironmentSelector } from '@/modules/protocols/rest/components/common/EnvironmentSelector';
 
 export function WorkspaceHeader() {
   return (
-    <div 
+    <div
       className="h-16 border-b border-border flex items-center px-8 w-full justify-between"
       role="banner"
     >
@@ -25,8 +26,9 @@ export function WorkspaceHeader() {
         </div>
       </div>
 
-      {/* Right section - Settings */}
-      <div className="flex items-center justify-end flex-1">
+      {/* Right section - Environment Selector and Settings */}
+      <div className="flex items-center justify-end flex-1 gap-3">
+        <EnvironmentSelector />
         <Button
           variant="ghost"
           size="icon"
