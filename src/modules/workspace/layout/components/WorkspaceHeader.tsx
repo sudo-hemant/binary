@@ -10,12 +10,12 @@ import { EnvironmentSelector } from '@/modules/protocols/rest/components/common/
 export function WorkspaceHeader() {
   return (
     <div
-      className="h-16 border-b border-border flex items-center px-8 w-full justify-between"
+      className="h-14 border-b border-border flex items-center px-6 w-full justify-between"
       role="banner"
     >
       {/* Left section - Logo and Workspace Selector */}
-      <div className="flex items-center gap-12 flex-1">
-        <h1 className="text-3xl font-bold tracking-wide text-foreground flex-shrink-0"> Binary AI </h1>
+      <div className="flex items-center gap-6 flex-1">
+        <h1 className="text-xl font-semibold tracking-wide text-foreground flex-shrink-0">Binary AI</h1>
         <WorkspaceSelector />
       </div>
 
@@ -32,11 +32,11 @@ export function WorkspaceHeader() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-18 w-18"
+          className="h-9 w-9"
           aria-label="Settings"
           title="Settings (Ctrl+,)"
         >
-          <Settings className="h-12 w-12" />
+          <Settings className="h-5 w-5" />
         </Button>
       </div>
     </div>

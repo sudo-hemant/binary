@@ -19,7 +19,7 @@ const protocols = [
 
 export function ProtocolSidebar({ activeProtocol, onProtocolChange }: ProtocolSidebarProps) {
   return (
-    <div className="w-20 bg-muted/50 border-r border-border flex flex-col items-center py-6 space-y-4">
+    <div className="w-[72px] bg-muted/30 border-r border-border flex flex-col items-center py-4 space-y-2">
       {protocols.map((protocol) => {
         const Icon = protocol.icon;
         return (
@@ -28,15 +28,15 @@ export function ProtocolSidebar({ activeProtocol, onProtocolChange }: ProtocolSi
             variant="ghost"
             size="icon"
             className={cn(
-              "h-16 w-16 flex flex-col items-center justify-center gap-1 p-2",
+              "h-14 w-14 flex flex-col items-center justify-center gap-1 p-2 rounded-lg",
               activeProtocol === protocol.id
                 ? "bg-primary text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
                 : "hover:bg-accent hover:text-accent-foreground"
             )}
             onClick={() => onProtocolChange(protocol.id)}
           >
-            <Icon className="h-6 w-6" />
-            <span className="text-xs font-medium">{protocol.name}</span>
+            <Icon className="h-5 w-5" />
+            <span className="text-[10px] font-medium">{protocol.name}</span>
           </Button>
         );
       })}
