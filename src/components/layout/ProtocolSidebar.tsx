@@ -29,9 +29,9 @@ export function ProtocolSidebar({ activeProtocol, onProtocolChange }: ProtocolSi
             size="icon"
             className={cn(
               "h-16 w-16 flex flex-col items-center justify-center gap-1 p-2",
-              activeProtocol === protocol.id 
-                ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                : "hover:bg-accent"
+              activeProtocol === protocol.id
+                ? "bg-primary text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
+                : "hover:bg-accent hover:text-accent-foreground"
             )}
             onClick={() => onProtocolChange(protocol.id)}
           >
